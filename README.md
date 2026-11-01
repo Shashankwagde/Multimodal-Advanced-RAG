@@ -1,127 +1,306 @@
-Multimodal RAG Assistant
+# 📚 Multimodal Advanced RAG Assistant
 
-Upload your own documents (PDF, DOCX, TXT) and images (PNG, JPG, JPEG, WEBP), then ask questions about them. Answers cite their sources, and the figures they relied on are shown next to the answer.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/NVIDIA%20NIM-Powered-76B900?logo=nvidia&logoColor=white" alt="NVIDIA NIM">
+  <img src="https://img.shields.io/badge/Groq-LPU%20Inference-f55036?logo=groq&logoColor=white" alt="Groq">
+  <img src="https://img.shields.io/badge/LangChain-Framework-1C3C3C?logo=langchain&logoColor=white" alt="LangChain">
+  <img src="https://img.shields.io/badge/Streamlit-1.50%2B-FF4B4B?logo=streamlit&logoColor=white" alt="Streamlit">
+  <img src="https://img.shields.io/badge/FAISS-Vector%20Search-00599C" alt="FAISS">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
+  <img src="https://img.shields.io/badge/Tests-Passing-brightgreen?logo=pytest&logoColor=white" alt="Tests Passing">
+</p>
 
-The app is built as a learning project and a working demo. Every AI service it uses has a free tier, so it can be run and hosted at no cost.
+<p align="center">
+  <strong>A production-grade, multimodal Retrieval-Augmented Generation (RAG) assistant that reasons over text, tables, charts, and diagrams from your documents with full citations and inline visual evidence.</strong>
+</p>
 
-Features
+---
 
-• Document Q&A over PDF, DOCX and TXT files.
-• Figure understanding. Charts, diagrams and images inside PDFs are extracted, described by a vision model, and searchable like text. Figures are shown with the answer.
-• Hybrid retrieval. Semantic search (embeddings + FAISS) and keyword search (BM25) run together, and results are merged.
-• Multi-query retrieval. The question is rewritten a few ways so that different wording still finds the right text.
-• Parent-child chunks. Small chunks are searched for precision; their larger parent chunks are given to the model for context.
-• Reranking. Candidates are re-scored for relevance before the answer is written.
-• Citations. Text sources are cited as [1], figures as [Figure 1: page 3 of report.pdf].
-• Conversation memory for follow-up questions.
-• Debug view that shows each retrieval step, so you can see how an answer was reached.
+## 🌟 Highlights
 
-How it works
+- 🖼️ **Multimodal Figure Understanding**: Automatically detects and extracts charts, diagrams, and figures from PDFs (and standalone images). Uses a vision LLM to generate rich semantic summaries so visual data is as searchable as text.
+- ⚡ **100% Free-Tier Architecture**: Built using free API tiers from **NVIDIA NIM** (vision, embeddings, reranking) and **Groq** (ultra-fast inference backup) — zero cloud GPU costs required.
+- 🔍 **Hybrid Retrieval**: Combines semantic dense retrieval (FAISS) with lexical keyword matching (BM25) to catch both high-level concepts and exact domain keywords.
+- 🔄 **Multi-Query Rewriting**: Dynamically expands user questions into multiple search queries while resolving pronoun ambiguity using chat history.
+- 📐 **Hierarchical Parent-Child Chunking**: Indexes small, focused child chunks (400 chars) for precision search, while supplying broad parent chunks (1600 chars) to the LLM for deep context.
+- 🎯 **Deep Reranking**: Re-scores candidate documents using cross-encoders / NVIDIA NIM rerankers with automatic fallback to keyword overlap.
+- 📑 **Inline Citations & Visual Artifacts**: Text answers reference sources via numbered citations (`[1]`), and relevant charts/figures are rendered directly inside the chat interface.
+- 🔬 **Retrieval Debug Inspector**: Inspect intermediate steps — multi-query variants, hybrid retrieval candidates, reranking scores, and prompt budgets in real time.
+- 🛡️ **Hugging Face Spaces & Multi-Tenant Ready**: Built-in support for isolated visitor workspaces with automatic TTL cleanup for public demos.
 
-Upload -> Load -> Chunk -> Index -> Retrieve -> Rerank -> Refine -> Answer
-  (text + (parent/ (FAISS + (multi-query (NVIDIA (budget, (text +
-  figures) child, BM25) + hybrid) reranker) figures) figures)
-  images ->
-  descriptions)
+---
 
-Ingestion extracts text and figures. Chunking turns figures into text descriptions with a vision model, so the rest of the pipeline treats them like any other chunk. Refinement splits the final context into text and figures, and the answer step sends the figure images to the vision model along with the text.
+## 🏗️ Architecture & Pipeline Flow
 
-Tech stack
+```mermaid
+flowchart TD
+    subgraph INGESTION ["1. Ingestion & Extraction"]
+        DOCS["Raw Docs<br/>(PDF, DOCX, TXT, Images)"]
+        PARSE["PyMuPDF & Loaders"]
+        EXTRACT["Text Extraction + Figure Extractor"]
+        IMG_DESC["NVIDIA/Groq Vision LLM<br/>(Figure Summarization)"]
+        DOCS --> PARSE --> EXTRACT
+        EXTRACT -->|Embedded Images| IMG_DESC
+    end
 
-| Part | Tool |
-|---|---|
-| Chat, vision, embeddings, reranking | NVIDIA NIM (free endpoints) |
-| Backup chat model (optional) | Groq (free tier) |
-| Vector search | FAISS (local) |
-| Keyword search | BM25 (rank-bm25) |
-| PDF and image extraction | PyMuPDF, Pillow |
-| Orchestration | LangChain |
-| Interface | Streamlit |
+    subgraph INDEXING ["2. Chunking & Indexing"]
+        CHUNKER["Parent-Child Chunker<br/>(Parent: 1600 / Child: 400)"]
+        FAISS_DB[("FAISS Vector Index<br/>(NVIDIA Embeddings)")]
+        BM25_STORE[("BM25 & Doc Store<br/>(doc_store.json)")]
+        EXTRACT -->|Raw Text| CHUNKER
+        IMG_DESC -->|Figure Descriptions| CHUNKER
+        CHUNKER -->|Child Chunks| FAISS_DB
+        CHUNKER -->|Parent & Child Chunks| BM25_STORE
+    end
 
-Project structure
+    subgraph QUERY ["3. Query & Retrieval"]
+        USER_Q["User Question + History"]
+        M_QUERY["Multi-Query Rewriter<br/>(LLM Variants)"]
+        HYBRID["Hybrid Search<br/>(FAISS + BM25)"]
+        PARENT_REC["Parent Recovery<br/>(Child -> Full Context)"]
+        USER_Q --> M_QUERY --> HYBRID
+        FAISS_DB -.-> HYBRID
+        BM25_STORE -.-> HYBRID
+        HYBRID --> PARENT_REC
+    end
 
-app.py Streamlit interface
-config.py Settings, read from .env
-llm_client.py Chat, vision and embedding models (NVIDIA, Groq backup)
-scripts/check_models.py Checks that the model IDs and keys work
-src/
-  ingestion.py Loads PDF, DOCX, TXT and images; extracts figures
-  chunking.py Parent-child chunks; figure descriptions
-  indexing.py Builds and updates the FAISS index and document store
-  retrieval.py Multi-query and hybrid retrieval, parent recovery
-  reranking.py NVIDIA reranker, with fallbacks
-  refinement.py Filtering, context budget, text/figure split, citations
-  rag_pipeline.py Runs the full pipeline and writes the answer
-  memory.py Conversation history
-  paths.py Finds figure files on any machine
-  workspace.py Per-visitor folders for hosted demos
-tests/ Offline tests (no API calls)
+    subgraph REFINEMENT ["4. Rerank & Refine"]
+        RERANK["NVIDIA / Cross-Encoder Reranker"]
+        REFINE["Context Refiner<br/>(Score Filter + Token Budget)"]
+        PARENT_REC --> RERANK --> REFINE
+    end
 
-Setup
+    subgraph GENERATION ["5. Multimodal Generation"]
+        PROMPT_BUILD["Context Assembler<br/>(Text + Base64 Figures)"]
+        VISION_CHAT["NVIDIA / Groq Vision LLM"]
+        UI_OUT["Streamlit Response<br/>(Cited Text + Inline Figures)"]
+        REFINE --> PROMPT_BUILD --> VISION_CHAT --> UI_OUT
+    end
+```
 
-Requirements
+---
 
-• Python 3.10 or newer
-• A free NVIDIA API key from build.nvidia.com (https://build.nvidia.com/settings)
-• Optional: a free Groq API key from console.groq.com (https://console.groq.com)
+## 🧰 Tech Stack
 
-Install
+| Component | Technology | Role |
+| :--- | :--- | :--- |
+| **Primary LLM & Vision** | **NVIDIA NIM** (`meta/llama-3.2-11b-vision-instruct` / `nemotron`) | Vision figure description & contextual answer generation |
+| **Failover LLM** | **Groq** (`llama-3.2-11b-vision-preview` / `llama-3.3-70b-versatile`) | High-speed backup for answer synthesis |
+| **Embeddings** | **NVIDIA NIM** (`nvidia/nv-embedqa-e5-v5` / `nemotron-3-embed-1b`) | High-dimensional semantic embeddings |
+| **Reranker** | **NVIDIA Reranking NIM** / Local Cross-Encoder | High-precision candidate relevance re-scoring |
+| **Dense Vector Index** | **FAISS** (Local CPU) | Fast, lightweight local vector search |
+| **Sparse Lexical Index** | **BM25** (`rank-bm25`) | Exact keyword and terminology matching |
+| **Document Processing** | **PyMuPDF (`fitz`)**, **Docx2txt**, **Pillow** | Text parsing and high-resolution figure extraction |
+| **Orchestration** | **LangChain Core & Community** | Prompt chaining, memory management, and pipeline flow |
+| **User Interface** | **Streamlit** (1.50+) | Interactive multi-turn chat, file manager, and debug console |
 
-git clone <your-repo-url>
-cd <your-repo-folder>
+---
+
+## 📂 Project Structure
+
+```text
+Advanced RAG/
+├── app.py                            # Streamlit user interface & chat session controller
+├── config.py                         # Central configuration, hyperparameters & env validation
+├── llm_client.py                     # Unified client for NVIDIA NIM & Groq models
+├── requirements.txt                  # Python dependencies
+├── .env.example                      # Template for API keys and configuration
+├── README.md                         # Project documentation
+│
+├── data/
+│   ├── documents/                    # Default source documents (PDF, DOCX, TXT, images)
+│   └── extracted_images/             # Figures extracted from uploaded documents
+│
+├── vectorstore/
+│   ├── faiss/                        # Local FAISS index files (index.faiss, index.pkl)
+│   ├── doc_store.json                # Complete parent/child chunk store for BM25 & lookup
+│   └── image_descriptions.json       # Cache of vision model figure descriptions
+│
+├── src/                              # Core RAG implementation modules
+│   ├── __init__.py                   # Package exports
+│   ├── ingestion.py                  # Multi-format loaders & PDF figure extraction
+│   ├── chunking.py                   # Parent-child chunking & image-to-document mapping
+│   ├── indexing.py                   # FAISS vector store creation & incremental indexing
+│   ├── retrieval.py                  # Multi-query rewriting, hybrid retrieval & parent recovery
+│   ├── reranking.py                  # NVIDIA NIM & cross-encoder rerankers with fallbacks
+│   ├── refinement.py                 # Irrelevance filtering, context budgeting & citations
+│   ├── rag_pipeline.py               # End-to-end pipeline execution & answer generation
+│   ├── memory.py                     # Sliding-window conversation history
+│   ├── paths.py                      # Robust cross-platform path resolution for visual figures
+│   └── workspace.py                  # Session-isolated workspaces for hosted multi-user environments
+│
+├── scripts/                          # Utility & validation scripts
+│   ├── check_models.py               # Validates API keys, model endpoints & reranker connectivity
+│   ├── build_index.py                # Standalone CLI script to build vector index
+│   └── generate_sample_documents.py  # Generates synthetic test documents with charts
+│
+└── tests/
+    └── test_offline.py               # Comprehensive offline test suite (no API keys needed)
+```
+
+---
+
+## 🚀 Quickstart Guide
+
+### 1. Prerequisites
+- **Python**: Version 3.10 or higher
+- **NVIDIA API Key**: Free tier from [build.nvidia.com](https://build.nvidia.com)
+- **Groq API Key** *(Optional)*: Free tier from [console.groq.com](https://console.groq.com)
+
+### 2. Installation
+
+Clone the repository and set up a Python virtual environment:
+
+```bash
+# Clone repository
+git clone https://github.com/your-username/multimodal-advanced-rag.git
+cd multimodal-advanced-rag
+
+# Create and activate virtual environment
 python -m venv myenv
-source myenv/bin/activate # Windows: myenv\Scripts\activate
+
+# Windows
+myenv\Scripts\activate
+
+# Linux / macOS
+source myenv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
+```
 
-Configure
+### 3. Environment Configuration
 
-Copy .env.example to .env and add your keys:
+Copy the example environment file and configure your credentials:
 
-NVIDIA_API_KEY=your-key-here
-GROQ_API_KEY= # optional; leave empty to turn the backup off
+```bash
+cp .env.example .env
+```
 
-Other settings (model names, chunk sizes, reranker, upload limits) are documented in .env.example.
+Open `.env` in your editor and add your keys:
 
-Check your setup
+```dotenv
+# Primary Provider: NVIDIA NIM (Free API keys at build.nvidia.com)
+NVIDIA_API_KEY=nvapi-your-key-here
 
+# Optional: Groq Backup
+GROQ_API_KEY=gsk_your-groq-key-here
+
+# Vector Store Engine ("faiss" or "pinecone")
+VECTOR_DB=faiss
+
+# Reranker Engine ("nvidia", "cross-encoder", or "simple")
+RERANKER=nvidia
+```
+
+### 4. Verify Your Setup
+
+Run the built-in diagnostic tool to test your endpoints, keys, and model response times:
+
+```bash
 python scripts/check_models.py
+```
 
-This confirms that each model ID exists and answers. Each check uses only a few tokens.
+*Expected output:*
+```text
+[PASS] NVIDIA API Key: valid format
+[PASS] Chat Model (meta/llama-3.2-11b-vision-instruct): responding
+[PASS] Embedding Model (nvidia/nv-embedqa-e5-v5): vectors generated
+[PASS] Reranker Endpoint: online
+All checks passed! System ready.
+```
 
-Run
+### 5. Launch the Web Application
 
+```bash
 streamlit run app.py
+```
 
-Then:
+Open your browser at `http://localhost:8501`.
 
-1. Upload your files in the sidebar and click Save uploaded files.
-2. Click Build Vector DB. Figures are described by the vision model, which takes a little time the first time.
-3. Ask a question in the chat box.
+---
 
-Turn on Show Retrieval Details in the sidebar to see how the answer was found.
+## 🖥️ User Interface Walkthrough
 
-Tests
+```text
+┌───────────────────────────────────────────────┬───────────────────────────────────────────────┐
+│  SIDEBAR: CONTROLS & STATUS                   │  CHAT INTERFACE                               │
+│                                               │                                               │
+│  📂 Upload Documents & Images                 │  User: How did operating margins change in    │
+│     [Drop PDF, DOCX, TXT, PNG, JPG here]     │        Q3, and what does the chart show?      │
+│     [Save Files]  [Build Vector DB]           │                                               │
+│                                               │  Assistant: Operating margins expanded by     │
+│  ⚙️ Pipeline Configuration                     │  2.4% due to reduced COGS [1]. As shown in    │
+│     • Vector DB: FAISS                        │  the breakdown below, software margins        │
+│     • Models: NVIDIA NIM                      │  reached 78% [Figure 1: page 4 of report.pdf].│
+│     • Status: Index Ready (14 Chunks, 2 Figs) │                                               │
+│                                               │  ┌─────────────────────────────────────────┐  │
+│  🔍 Debugging                                 │  │ [Image Preview: Q3 Margin Breakdown]   │  │
+│     [x] Show Retrieval Details                │  └─────────────────────────────────────────┘  │
+│                                               │                                               │
+│  🧹 Session                                   │  Sources:                                     │
+│     [Clear Chat]   [Clear Index]              │  [1] report.pdf - Page 3                      │
+│                                               │  [Figure 1] report.pdf - Page 4 (Extracted)   │
+└───────────────────────────────────────────────┴───────────────────────────────────────────────┘
+```
 
+1. **Upload Documents**: Upload one or more PDF, DOCX, TXT files or images.
+2. **Build Index**: Click **Build Vector DB**. Figures are extracted from PDFs, analyzed via Vision LLM, and embedded into FAISS.
+3. **Ask Questions**: Ask questions referring to text or visual figures. Answers will display source citations and inline figure images.
+4. **Inspect Retrieval**: Toggle **Show Retrieval Details** in the sidebar to review:
+   - Generated Multi-Query variants.
+   - Raw hybrid retrieval scores (FAISS vs BM25).
+   - Cross-encoder reranked candidate ordering.
+   - Exact context payload sent to the Vision LLM.
+
+---
+
+## 🧪 Testing & Validation
+
+The project includes an **offline test suite** that validates core pipeline logic without making external API calls or requiring internet connectivity:
+
+```bash
 python -m pytest tests -q
+```
 
-The tests run offline and need no API keys.
+Tests cover:
+- Document loaders and PDF figure extraction.
+- Parent-child chunk linkage and metadata consistency.
+- Citation formatting and character budget trimming.
+- Fallback reranking behavior under failure conditions.
+- Path resolution across varied operating systems.
 
-Hosting (free)
+---
 
-The app runs on a free Hugging Face Space with the Streamlit SDK.
+## 🌐 Free Cloud Deployment (Hugging Face Spaces)
 
-• Add NVIDIA_API_KEY as a secret.
-• Set PER_SESSION_WORKSPACES=true as a variable. Each visitor then gets a private workspace. Workspaces are deleted after 45 minutes of inactivity.
+This repository is optimized for deployment as a **Free Hugging Face Space**:
 
-Uploads are limited to 5 files and 20 MB per visitor by default, to protect the shared free API quota.
+1. Create a new Space on [Hugging Face](https://huggingface.co/new-space) using the **Streamlit** SDK.
+2. Push this repository to your Space.
+3. In **Settings $\rightarrow$ Variables and Secrets**:
+   - Add Secret: `NVIDIA_API_KEY` = `your-nvidia-api-key`
+   - Add Secret (optional): `GROQ_API_KEY` = `your-groq-api-key`
+   - Add Variable: `PER_SESSION_WORKSPACES` = `true`
+4. The application automatically assigns each visitor an isolated workspace in `workspaces/<session_id>/` and cleans up stale sessions after 45 minutes of inactivity.
 
-Limitations
+---
 
-• Free API tiers have rate limits. Heavy use can trigger fallbacks, such as keyword reranking.
-• Image descriptions depend on the vision model. Small text in figures may be missed or misread.
-• Hosted workspaces are cleared after inactivity, so they are not a permanent store.
-• FAISS is stored locally. For large collections, a hosted vector database such as Pinecone is more suitable.
+## ⚖️ Limitations & Best Practices
 
-License
+- **Rate Limits**: Free tier APIs carry per-minute RPM limits. If limits are reached, the system will fall back gracefully to the simple reranker.
+- **Complex Diagrams**: Highly dense circuit diagrams or fine-print tables may benefit from higher-resolution vision models.
+- **Local FAISS Storage**: FAISS runs locally on CPU. For enterprise production scale with millions of documents, set `VECTOR_DB=pinecone` in `.env`.
 
-Add your license here (for example MIT).
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See `LICENSE` for more information.
+
+---
+
+<p align="center">
+  Built with ❤️ for advanced RAG research and multimodal application development.
+</p>
