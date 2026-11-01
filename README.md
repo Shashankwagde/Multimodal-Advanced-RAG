@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  **Live App:** [https://multimodal-advanced-rag.streamlit.app/](https://multimodal-advanced-rag.streamlit.app/)
+  **Live App:** [https://multimodal-advanced-rag.streamlit.app/]
 </p>
 
 ---
