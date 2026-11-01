@@ -1,0 +1,26 @@
+# Secrets: never commit these.
+.env
+
+# Local virtual environment (machine-specific, large).
+myenv/
+venv/
+.venv/
+myenv
+
+# Python caches and test output.
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editor and OS files.
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Your documents, figures, index and per-visitor workspaces are NOT committed.
+# The deployed app starts empty and users upload their own files.
+data/documents/
+data/extracted_images/
+vectorstore/
+workspaces/
