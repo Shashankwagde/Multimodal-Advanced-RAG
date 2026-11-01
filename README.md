@@ -15,6 +15,16 @@
   <strong>A production-grade, multimodal Retrieval-Augmented Generation (RAG) assistant that reasons over text, tables, charts, and diagrams from your documents with full citations and inline visual evidence.</strong>
 </p>
 
+<p align="center">
+  <a href="https://multimodal-advanced-rag.streamlit.app/">
+    <img src="https://img.shields.io/badge/🚀%20Live%20Demo-Open%20App-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Open Live Demo">
+  </a>
+</p>
+
+<p align="center">
+  **Live App:** [https://multimodal-advanced-rag.streamlit.app/](https://multimodal-advanced-rag.streamlit.app/)
+</p>
+
 ---
 
 ## 🌟 Highlights
@@ -27,7 +37,7 @@
 - 🎯 **Deep Reranking**: Re-scores candidate documents using cross-encoders / NVIDIA NIM rerankers with automatic fallback to keyword overlap.
 - 📑 **Inline Citations & Visual Artifacts**: Text answers reference sources via numbered citations (`[1]`), and relevant charts/figures are rendered directly inside the chat interface.
 - 🔬 **Retrieval Debug Inspector**: Inspect intermediate steps — multi-query variants, hybrid retrieval candidates, reranking scores, and prompt budgets in real time.
-- 🛡️ **Hugging Face Spaces & Multi-Tenant Ready**: Built-in support for isolated visitor workspaces with automatic TTL cleanup for public demos.
+- ☁️ **Deployed on Streamlit Community Cloud**: Try the live application in your browser. The app supports isolated visitor workspaces with automatic cleanup of idle sessions.
 
 ---
 
@@ -273,17 +283,36 @@ Tests cover:
 
 ---
 
-## 🌐 Free Cloud Deployment (Hugging Face Spaces)
+## ☁️ Live Deployment (Streamlit Community Cloud)
 
-This repository is optimized for deployment as a **Free Hugging Face Space**:
+The application is published on **Streamlit Community Cloud**:
 
-1. Create a new Space on [Hugging Face](https://huggingface.co/new-space) using the **Streamlit** SDK.
-2. Push this repository to your Space.
-3. In **Settings $\rightarrow$ Variables and Secrets**:
-   - Add Secret: `NVIDIA_API_KEY` = `your-nvidia-api-key`
-   - Add Secret (optional): `GROQ_API_KEY` = `your-groq-api-key`
-   - Add Variable: `PER_SESSION_WORKSPACES` = `true`
-4. The application automatically assigns each visitor an isolated workspace in `workspaces/<session_id>/` and cleans up stale sessions after 45 minutes of inactivity.
+<p align="center">
+  <a href="https://multimodal-advanced-rag.streamlit.app/">
+    <img src="https://img.shields.io/badge/Launch%20Multimodal%20Advanced%20RAG-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Launch the live app">
+  </a>
+</p>
+
+**[Open the live application](https://multimodal-advanced-rag.streamlit.app/)**
+
+### Deployment configuration
+
+If you are deploying your own copy:
+
+1. Push the project to a GitHub repository.
+2. Sign in to [Streamlit Community Cloud](https://share.streamlit.io/) and create an app from that repository.
+3. Select the deployment branch and set the main file path to `app.py`.
+4. Open the app's **Settings → Secrets** and add your API keys and workspace setting:
+
+   ```toml
+   NVIDIA_API_KEY = "your-nvidia-api-key"
+   GROQ_API_KEY = "your-groq-api-key" # Optional
+   PER_SESSION_WORKSPACES = true
+   ```
+
+5. Save the secrets. Streamlit Cloud will restart the app with the updated configuration.
+
+The app creates a separate workspace for each visitor when `PER_SESSION_WORKSPACES` is enabled. Uploaded files and FAISS indexes are stored on the app's local filesystem, so they should be treated as temporary on Streamlit Community Cloud and may not survive restarts or redeployments.
 
 ---
 
